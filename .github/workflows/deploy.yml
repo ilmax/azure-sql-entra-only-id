@@ -1,0 +1,43 @@
+name: Deploy bacpac to Azure SQL Database
+
+on:
+  pull_request:    
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup dotnet SDK
+        uses: actions/setup-dotnet@v4
+
+      - name: Create Dacpac
+        run: dotnet build Database/Database.csproj --configuration Release -o ./out
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Construct connection string
+        run: |
+          connection_string="Server=tcp:${{ vars.SQL_SERVER }}.database.windows.net,1433;Initial Catalog=${{ vars.SQL_DATABASE }}; Authentication=Active Directory Default; Encrypt=True; TrustServerCertificate=False; Connection Timeout=30;"
+          echo "::add-mask::$connection_string"
+          echo "connection_string=$connection_string" >> $GITHUB_ENV
+
+      - name: Deploy Database
+        uses: azure/sql-action@v2.3
+        with:
+          connection-string: ${{ env.connection_string }}
+          action: 'publish'
+          path: ./out/Database.dacpac
+
+      - name: Logout of Azure
+        run: az logout
+

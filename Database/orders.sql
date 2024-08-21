@@ -1,0 +1,4 @@
+CREATE TABLE [dbo].[orders]
+(
+	[Id] INT NOT NULL PRIMARY KEY
+)
